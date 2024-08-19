@@ -13,7 +13,9 @@ import ru.kata.spring.boot_security.demo.service.UserService;
 import ru.kata.spring.boot_security.demo.validator.UserValidator;
 
 import javax.validation.Valid;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api")
@@ -43,8 +45,10 @@ public class AdminController {
     public ResponseEntity<HttpStatus> addUser(@RequestBody @Valid User user, BindingResult bindingResult) {
         userValidator.validate(user, bindingResult);
         if(bindingResult.hasErrors()) throw new IncorrectUserDataException(userValidator.getErrorMsg(bindingResult));
-
-        userService.add(user);
+        Set<String> roleNames = new HashSet<>();
+        roleNames.add("ROLE_USER");
+        roleNames.add("ROLE_ADMIN");
+        userService.add(user, roleNames);
         return ResponseEntity.ok(HttpStatus.OK);
     }
 

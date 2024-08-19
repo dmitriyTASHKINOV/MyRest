@@ -12,10 +12,7 @@ import ru.kata.spring.boot_security.demo.repository.RoleRepository;
 import ru.kata.spring.boot_security.demo.repository.UsersRepository;
 
 import javax.annotation.PostConstruct;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 
@@ -44,14 +41,11 @@ public class UserServiceImpl implements UserService {
 
     @Transactional
     @Override
-    public void add(User user) {
-        user.setRoles(user.getRoles().stream().map(role -> roleService.getByName(role.getName())).collect(Collectors.toSet()));
+    public void add(User user,Set<String> roleNames) {
+        user.setRoles(roleNames.stream().map(roleService::getByName).collect(Collectors.toSet()));
         user.setPassword(passwordEncoder.encode(user.getPassword()));
-        // Убедитесь, что у пользователя не установлен идентификатор
-        if (user.getId() != null) {
-            user.setId(null); // Сбросить идентификатор, чтобы база данных могла установить его автоматически
-        }
         usersRepository.save(user);
+
     }
     public User findById(Long id) {
         return usersRepository.findById(id).orElseThrow(() -> new NoSuchUserException("There is no employee with ID = '" + id + "' in Database"));
@@ -67,8 +61,26 @@ public class UserServiceImpl implements UserService {
     @Transactional
     @Override
     public void update(User user) {
-        user.setRoles(user.getRoles().stream().map(role -> roleService.getByName(role.getName())).collect(Collectors.toSet()));
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
-        usersRepository.save(user);
+        User existingUser = usersRepository.findById(user.getId()).orElse(null);
+        if (existingUser != null) {
+            if (user.getPassword() == null || user.getPassword().isEmpty() || user.getPassword().equals(existingUser.getPassword())) {
+                user.setPassword(existingUser.getPassword());
+            } else {
+                user.setPassword(passwordEncoder.encode(user.getPassword()));
+            }
+            Set<Role> currentRoles = existingUser.getRoles();
+
+            if (!user.getRoles().isEmpty()) {
+                for (Role role : user.getRoles()) {
+                    currentRoles.add(roleService.getByName(role.getName()));
+                }
+                user.setRoles(currentRoles);
+            } else {
+
+                user.setRoles(currentRoles);
+            }
+
+            usersRepository.save(user);
+        }
     }
 }
